@@ -1,0 +1,176 @@
+"""Example code for TensorFlow Wide & Deep Tutorial using TF.Learn API."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+import tempfile
+import pandas as pd
+import tensorflow as tf
+import time
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+
+start = time.process_time()
+
+print('---------------loading data -------------------')
+df = pd.read_csv(r'F:\sepctra_data\wide_deep_data\光谱型\dspec.csv', engine='python')
+data = df.iloc[:, 2:]
+labels = df.iloc[:, 0]
+traindata, testdata, trainlabels, testlabels = train_test_split(data, labels, test_size=0.2, random_state=1)
+print('------------------ done ----------------------')
+
+print('----------creating feature columns ------------')
+# deep 部分
+csv_columns = [df.columns[i] for i in range(2, 3903)]
+deep_colunms = []
+for col_name in csv_columns:
+    col_name = tf.feature_column.numeric_column(col_name)
+    deep_colunms.append(col_name)
+
+
+# wide部分特征处理
+# Na I(a)
+NaIa_band = deep_colunms[867:918]
+NaIa_conti = deep_colunms[1344:1355]
+NaIa = []
+for col in NaIa_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    NaIa.append(col)
+for col in NaIa_conti:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    NaIa.append(col)
+
+# CaH3、TiO5
+CaH3_band = deep_colunms[1959:1990]
+TiO5_band = deep_colunms[2125:2135]
+CaH3_conti = deep_colunms[2041:2046]
+CaH3 = []
+TiO5 = []
+for col in CaH3_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    CaH3.append(col)
+for col in TiO5_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    TiO5.append(col)
+for col in CaH3_conti:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    CaH3.append(col)
+    TiO5.append(col)
+
+# Na I(b)
+NaIb_band = deep_colunms[3171:3197]
+NaIb_conti = deep_colunms[3169:3173]
+NaIb_conti.extend(deep_colunms[3231:3235])
+NaIb = []
+for col in NaIb_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    NaIb.append(col)
+for col in NaIb_conti:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    NaIb.append(col)
+
+# CaII
+CaII_band = deep_colunms[3483:3662]
+CaII_conti = deep_colunms[3249:3300]
+CaII_conti.extend(deep_colunms[3569:3600])
+CaII = []
+for col in CaII_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    CaII.append(col)
+for col in CaII_conti:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    CaII.append(col)
+
+# CaH6385
+CaH6385_band = deep_colunms[1384:1389]
+CaH6385_conti = deep_colunms[1544:1549]
+CaH6385 = []
+for col in CaH6385_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    NaIa.append(col)
+for col in CaH6385_conti:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    CaH6385.append(col)
+
+# TiO8250、Color6545
+TiO8250_band = deep_colunms[3249:3254]
+Color6545_band = CaH6385_conti
+TiO8250_conti = deep_colunms[2559:2564]
+TiO8250 = []
+Color6545 = []
+for col in TiO8250_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    TiO8250.append(col)
+for col in Color6545_band:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    Color6545.append(col)
+for col in TiO8250_conti:
+    col = tf.feature_column.bucketized_column(col, boundaries=[0.2, 0.4, 0.6, 0.8])
+    TiO8250.append(col)
+    Color6545.append(col)
+
+# crossed columns
+crossed_columns = [
+    tf.feature_column.crossed_column([col for col in NaIa], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in CaH3], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in TiO5], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in NaIb], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in CaII], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in CaH6385], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in TiO8250], hash_bucket_size=2000),
+    tf.feature_column.crossed_column([col for col in Color6545], hash_bucket_size=2000),
+]
+print('------------------ done ----------------------')
+
+print('---------------creating model -----------------')
+model_dir = tempfile.mkdtemp(dir=r'F:\tasks\wide_deep\w_d_dir')
+def build_estimator(model_dir):
+    """Build an estimator."""
+    m = tf.estimator.DNNLinearCombinedRegressor(
+      model_dir=model_dir,
+      linear_feature_columns=crossed_columns,
+      dnn_feature_columns=deep_colunms,
+      dnn_optimizer=tf.train.AdamOptimizer(0.001),
+      dnn_hidden_units=[100, 100, 100]
+    )
+
+    return m
+
+
+def input_fn(data, labels, num_epochs, shuffle):
+  """Input builder function."""
+  return tf.estimator.inputs.pandas_input_fn(
+      x=data,
+      y=labels,
+      batch_size=256,
+      num_epochs=num_epochs,
+      shuffle=shuffle,
+      num_threads=1)
+print('------------------ done ----------------------')
+
+print('-----------------training ---------------------')
+def train_and_eval(model_dir, epoches):
+    """Train and evaluate the model."""
+    m = build_estimator(model_dir)
+    m.train(
+      input_fn=input_fn(traindata, trainlabels, num_epochs=epoches, shuffle=True),
+    )
+    pred = m.predict(
+      input_fn=input_fn(testdata, testlabels, num_epochs=1, shuffle=False),
+    )
+    value_pred = []
+    for i in pred:
+        tmp = i['predictions']
+        value_pred.append(tmp[0])
+
+    labels_pred = list(map(round, value_pred))
+
+    print("model directory = %s" % model_dir)
+    
+    mae = metrics.mean_absolute_error(testlabels, labels_pred)
+    print('mae:', mae)
+
+
+train_and_eval(model_dir, 100)
+
+end = time.process_time()
+print("read: %f s" % (end - start))
