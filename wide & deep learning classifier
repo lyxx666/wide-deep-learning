@@ -19,7 +19,7 @@ traindata, testdata, trainlabels, testlabels = train_test_split(data, labels, te
 print('------------------ done ----------------------')
 
 print('----------creating feature columns ------------')
-# deep 部分，所有光谱
+# deep 部分
 csv_columns = [df.columns[i] for i in range(1, 3902)]
 deep_colunms = []
 for col_name in csv_columns:
@@ -206,9 +206,6 @@ def train_and_eval(model_dir, epoches):
   m = build_estimator(model_dir)
   m.train(
       input_fn=input_fn(traindata, trainlabels, num_epochs=epoches, shuffle=True),
-  )
-  results = m.evaluate(
-      input_fn=input_fn(testdata, testlabels, num_epochs=1, shuffle=False),
   )
   pred = m.predict(
       input_fn=input_fn(testdata, testlabels, num_epochs=1, shuffle=False),
